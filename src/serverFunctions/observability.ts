@@ -4,7 +4,8 @@ import { ActivationRepository } from "@/server/features/activation/repositories/
 import { GscService } from "@/server/features/gsc/services/GscService";
 import { resolveDateRange } from "@/server/features/gsc/searchAnalytics";
 import { previousPeriod } from "@/server/features/gsc/searchPerformanceReport";
-import { fetchUserData } from "@/server/lib/dataforseo/appendix";
+import { dataforseoCredentialSelector } from "@/server/lib/dataforseo/credential-selector";
+import { probeUserDataAccount } from "@/server/lib/dataforseo/user-data";
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import { getLatestResults } from "@/server/features/rank-tracking/services/rankTrackingResults";
 import { requireAuthenticatedContext } from "@/serverFunctions/middleware";
@@ -20,21 +21,49 @@ import { SEARCH_PERFORMANCE_RANGES } from "@/types/schemas/search-performance";
 // ---------------------------------------------------------------------------
 
 /**
- * Live account balance from DataForSEO's free GET /v3/appendix/user_data.
- * Powers the balance ticker in the status bar. Never billable; falls back to
- * null when the key is unset or the account is unreachable.
+ * Live wallet balance across ALL configured DataForSEO credentials (settings
+ * list first, env var last), summed for the status-bar ticker. May include
+ * several user_data probes, never billable; null when nothing is configured
+ * or the account is unreachable. Also returns the per-credential breakdown so
+ * UI can flag which accounts are exhausted.
  */
 export const getDataforseoBalance = createServerFn({ method: "POST" })
   .middleware(requireAuthenticatedContext)
   .handler(async () => {
     try {
-      const account = await fetchUserData();
-      const money = account?.money;
+      const credentials =
+        await dataforseoCredentialSelector.listResolvedCredentials();
+      if (credentials.length === 0) return null;
+
+      const rows = await Promise.all(
+        credentials.map(async (credential) => {
+          const { account, invalid } = await probeUserDataAccount(
+            credential.encoded,
+          );
+          return {
+            id: credential.id,
+            login: account?.login ?? credential.login,
+            fromEnv: credential.fromEnv,
+            invalid,
+            balance: account?.balance ?? null,
+            total: account?.total ?? null,
+            daySpend: account?.daySpend ?? null,
+            minuteSpend: account?.minuteSpend ?? null,
+          };
+        }),
+      );
+
+      const readable = rows.filter(
+        (row) => row.balance !== null && !row.invalid,
+      );
+      const sum = (key: "balance" | "total" | "daySpend" | "minuteSpend") =>
+        readable.reduce((total, row) => total + (row[key] ?? 0), 0);
       return {
-        balance: money?.balance ?? null,
-        total: money?.total ?? null,
-        daySpend: money?.statistics?.day?.total ?? null,
-        minuteSpend: money?.statistics?.minute?.total ?? null,
+        balance: sum("balance"),
+        total: sum("total"),
+        daySpend: sum("daySpend"),
+        minuteSpend: sum("minuteSpend"),
+        credentials: rows,
       };
     } catch {
       return null;
