@@ -37,7 +37,7 @@ describe("settings persistence safety", () => {
 
     expect(snapshot.readable).toBe(true);
     expect(snapshot.updatedAt).toBe("saved-at");
-    expect(snapshot.payload.dataforseo.password).toBe("");
+    expect(snapshot.payload.dataforseo.credentials).toEqual([]);
   });
 
   it("refuses to overwrite an unreadable encrypted row", async () => {

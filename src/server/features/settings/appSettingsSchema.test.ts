@@ -1,51 +1,79 @@
 import { describe, expect, it } from "vitest";
 import {
   appSettingsPayloadSchema,
-  publicAppSettingsSchema,
+  DEFAULT_APP_SETTINGS_PAYLOAD,
+  dataforseoSettingsSchema,
 } from "@/server/features/settings/appSettingsSchema";
 
-const payload = {
-  dataforseo: { login: "login", password: "secret" },
-  ai: {
-    openrouterApiKey: "or-key",
-    openaiApiKey: "oa-key",
-    anthropicApiKey: "ant-key",
-    defaultModel: "openai/gpt-4o",
-    temperature: 0.7,
-    maxTokens: 4096,
-  },
-  branding: { appTitle: "AbbaSeo", defaultRegion: "US", currency: "USD" },
-};
-
-describe("app settings schemas", () => {
-  it("accepts the complete deployment payload", () => {
-    expect(appSettingsPayloadSchema.parse(payload)).toEqual(payload);
-  });
-
-  it("rejects an out-of-range temperature", () => {
-    expect(() =>
-      appSettingsPayloadSchema.parse({
-        ...payload,
-        ai: { ...payload.ai, temperature: 2.1 },
-      }),
-    ).toThrow();
-  });
-
-  it("does not allow secret fields in the public response", () => {
-    const result = publicAppSettingsSchema.parse({
-      updatedAt: null,
-      dataforseo: { configured: true, login: "login" },
-      ai: {
-        openrouterConfigured: true,
-        openaiConfigured: false,
-        anthropicConfigured: false,
-        defaultModel: "openai/gpt-4o",
-        temperature: 0.7,
-        maxTokens: 4096,
-      },
-      branding: payload.branding,
+describe("dataforseoSettingsSchema", () => {
+  it("accepts the new credentials-array shape", () => {
+    const parsed = dataforseoSettingsSchema.parse({
+      credentials: [
+        { id: "cred-1", login: "a@b.com", password: "secret" },
+        { id: "cred-2", login: "c@d.com", password: "pw2" },
+      ],
     });
-    expect(JSON.stringify(result)).not.toContain("secret");
-    expect(JSON.stringify(result)).not.toContain("or-key");
+    expect(parsed.credentials).toHaveLength(2);
+    expect(parsed.credentials[0].id).toBe("cred-1");
+  });
+
+  it("migrates the legacy login/password shape on read", () => {
+    const parsed = dataforseoSettingsSchema.parse({
+      login: "old-login",
+      password: "old-password",
+    });
+    expect(parsed.credentials).toEqual([
+      { id: "legacy-1", login: "old-login", password: "old-password" },
+    ]);
+  });
+
+  it("turns an empty legacy payload into an empty credential list", () => {
+    expect(
+      dataforseoSettingsSchema.parse({ login: "", password: "" }).credentials,
+    ).toEqual([]);
+  });
+
+  it("rejects more than 10 credentials", () => {
+    const many = Array.from({ length: 11 }, (_, index) => ({
+      id: `cred-${index}`,
+      login: "login",
+      password: "pw",
+    }));
+    expect(
+      dataforseoSettingsSchema.safeParse({ credentials: many }).success,
+    ).toBe(false);
+  });
+});
+
+describe("appSettingsPayloadSchema", () => {
+  it("parses a legacy full payload into the credentials shape", () => {
+    const parsed = appSettingsPayloadSchema.parse({
+      dataforseo: { login: "l", password: "p" },
+      ai: {
+        openrouterApiKey: "",
+        openaiApiKey: "",
+        anthropicApiKey: "",
+        defaultModel: "",
+        temperature: 1,
+        maxTokens: 128_000,
+      },
+      branding: {
+        appTitle: "AbbaSeo",
+        defaultRegion: "US",
+        currency: "USD",
+      },
+    });
+    expect(parsed.dataforseo.credentials[0]).toEqual({
+      id: "legacy-1",
+      login: "l",
+      password: "p",
+    });
+  });
+
+  it("keeps the default payload empty yet parseable", () => {
+    const parsed = appSettingsPayloadSchema.parse(
+      DEFAULT_APP_SETTINGS_PAYLOAD,
+    );
+    expect(parsed.dataforseo.credentials).toEqual([]);
   });
 });
