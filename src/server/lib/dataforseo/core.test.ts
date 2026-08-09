@@ -1,18 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { incrementQueryCountMock, dynamicRequiredEnvValueMock } = vi.hoisted(
-  () => ({
-    incrementQueryCountMock: vi.fn(),
-    dynamicRequiredEnvValueMock: vi.fn(),
-  }),
-);
+const { incrementQueryCountMock, resolveMock } = vi.hoisted(() => ({
+  incrementQueryCountMock: vi.fn(),
+  resolveMock: vi.fn(),
+}));
 
 vi.mock("@/server/features/settings/SettingsRepository", () => ({
   incrementAppSettingsQueryCount: incrementQueryCountMock,
 }));
 
-vi.mock("@/server/features/settings/SettingsService", () => ({
-  getDynamicRequiredEnvValue: dynamicRequiredEnvValueMock,
+vi.mock("@/server/lib/dataforseo/credential-selector", () => ({
+  dataforseoCredentialSelector: { resolve: resolveMock },
 }));
 
 import {
@@ -24,7 +22,7 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  dynamicRequiredEnvValueMock.mockResolvedValue("test-api-key");
+  resolveMock.mockResolvedValue("test-api-key");
   incrementQueryCountMock.mockResolvedValue(undefined);
 });
 
@@ -115,5 +113,23 @@ describe("DataForSEO response metering", () => {
     ]);
 
     expect(result).toBe("response");
+  });
+
+  it("routes every billable call through the credential selector", async () => {
+    resolveMock.mockResolvedValue("selected-key");
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(Response.json({ tasks_count: 1 })),
+    );
+
+    await labsApi().googleKeywordsForSiteLive([]);
+
+    expect(resolveMock).toHaveBeenCalled();
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect((init.headers as Headers).get("Authorization")).toBe(
+      "Basic selected-key",
+    );
   });
 });

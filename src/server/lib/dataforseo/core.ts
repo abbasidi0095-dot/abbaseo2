@@ -9,7 +9,7 @@ import {
   SerpApi,
 } from "dataforseo-client";
 import { AppError } from "@/server/lib/errors";
-import { getDynamicRequiredEnvValue } from "@/server/features/settings/SettingsService";
+import { dataforseoCredentialSelector } from "@/server/lib/dataforseo/credential-selector";
 import type { ErrorCode } from "@/shared/error-codes";
 
 const API_BASE = "https://api.dataforseo.com";
@@ -98,10 +98,11 @@ function formatDataforseoRequestPath(url: RequestInfo): string {
  */
 function createAuthenticatedFetch(classify?: DataforseoErrorClassifier) {
   return async (url: RequestInfo, init?: RequestInit): Promise<Response> => {
-    // Settings screen credentials win over the env var; both resolve to the
-    // same Basic-auth header value, so no call site changes as users move
-    // their key from env to the Settings screen.
-    const apiKey = await getDynamicRequiredEnvValue("DATAFORSEO_API_KEY");
+    // The selector picks the DataForSEO account with the most topup remaining
+    // (settings-store credentials first, then the DATAFORSEO_API_KEY env var),
+    // falling back to the primary key when no account has a positive balance.
+    // Its balance probes use raw fetch, so this never recurses.
+    const apiKey = await dataforseoCredentialSelector.resolve();
     const headers = new Headers(init?.headers);
     headers.set("Authorization", `Basic ${apiKey}`);
     // Resolve the signal once so retries share the overall request timeout
