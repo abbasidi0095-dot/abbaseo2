@@ -1,0 +1,1 @@
+ALTER TABLE "app_settings" ADD COLUMN "query_count" integer DEFAULT 0 NOT NULL;
