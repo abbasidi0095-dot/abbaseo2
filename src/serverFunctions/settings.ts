@@ -5,18 +5,22 @@ import {
   requireAuthenticatedContext,
   requireSettingsAdminContext,
 } from "@/serverFunctions/middleware";
-import { fetchUserData } from "@/server/lib/dataforseo/appendix";
 import {
   DATAFORSEO_USER_DATA_URL,
   parseUserDataAccountPayload,
 } from "@/server/lib/dataforseo/user-data";
+import {
+  dataforseoCredentialSelector,
+  loadConfiguredDataforseoCredentials,
+} from "@/server/lib/dataforseo/credential-selector";
+import { probeUserDataAccount } from "@/server/lib/dataforseo/user-data";
+import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 import {
   appSettingsPayloadSchema,
   publicAppSettingsSchema,
   type PublicAppSettings,
 } from "@/server/features/settings/appSettingsSchema";
 import {
-  getDynamicRequiredEnvValue,
   isDynamicSecretConfigured,
   loadAppSettings,
   loadAppSettingsSnapshot,
@@ -67,18 +71,24 @@ async function redact(
     openrouterConfigured,
     openaiConfigured,
     anthropicConfigured,
+    envConfigured,
   ] = await Promise.all([
     isDynamicSecretConfigured("DATAFORSEO_API_KEY"),
     isDynamicSecretConfigured("OPENROUTER_API_KEY"),
     isDynamicSecretConfigured("OPENAI_API_KEY"),
     isDynamicSecretConfigured("ANTHROPIC_API_KEY"),
+    getOptionalEnvValue("DATAFORSEO_API_KEY").then(Boolean),
   ]);
 
   return publicAppSettingsSchema.parse({
     updatedAt,
     dataforseo: {
       configured: dataforseoConfigured,
-      login: payload.dataforseo?.login ?? "",
+      credentials: payload.dataforseo.credentials.map((credential) => ({
+        id: credential.id,
+        login: credential.login,
+      })),
+      envConfigured,
     },
     ai: {
       openrouterConfigured,
@@ -111,10 +121,24 @@ export const getAppBranding = createServerFn({ method: "GET" })
 
 const saveAppSettingsInputSchema = z.object({
   expectedUpdatedAt: z.string().nullable().optional(),
-  dataforseo: z.object({
-    login: z.string().max(255).optional().default(""),
-    password: z.string().max(1024).optional().default(""),
-  }),
+  dataforseo: z.union([
+    z.object({
+      credentials: z
+        .array(
+          z.object({
+            id: z.string().min(1).max(64),
+            login: z.string().max(255).optional().default(""),
+            password: z.string().max(1024).optional().default(""),
+          }),
+        )
+        .max(10),
+    }),
+    // Legacy single-pair payloads still save.
+    z.object({
+      login: z.string().max(255).optional().default(""),
+      password: z.string().max(1024).optional().default(""),
+    }),
+  ]),
   ai: z.object({
     openrouterApiKey: z.string().max(1024).optional().default(""),
     openaiApiKey: z.string().max(1024).optional().default(""),
@@ -151,6 +175,8 @@ export const saveAppSettings = createServerFn({ method: "POST" })
         ? current.updatedAt
         : input.expectedUpdatedAt,
     );
+    // New credentials must be probed fresh — old balance snapshots are stale.
+    dataforseoCredentialSelector.invalidateCache();
     return redact(saved.payload, saved.updatedAt);
   });
 
@@ -286,35 +312,43 @@ export const testAiConnection = createServerFn({ method: "POST" })
     };
   });
 
-// Live account usage & balance, read from the CURRENT configured credentials
-// (settings first, env fallback). DataForSEO's user_data endpoint is free.
+// Live per-credential usage & balance, probed from DataForSEO's free
+// user_data endpoint for every configured credential (settings list first,
+// env var last). Returns account numbers per credential so the UI can show
+// which account will serve requests and which are exhausted.
 export const getDataforseoUsage = createServerFn({ method: "GET" })
   .middleware(requireSettingsAdminContext)
   .handler(async () => {
-    try {
-      await getDynamicRequiredEnvValue("DATAFORSEO_API_KEY");
-    } catch {
+    const credentials = await loadConfiguredDataforseoCredentials();
+    if (credentials.length === 0) {
       throw new AppError(
         "VALIDATION_ERROR",
         "DataForSEO credentials are not configured. Save them in Settings first.",
       );
     }
-    const account = await fetchUserData();
-    if (!account) {
-      throw new AppError(
-        "DATAFORSEO_AUTH_FAILED",
-        "DataForSEO returned no account data. Check the saved credentials.",
-      );
-    }
-    const money = account.money;
+
+    const rows = await Promise.all(
+      credentials.map(async (credential) => {
+        const { account, invalid } = await probeUserDataAccount(
+          credential.encoded,
+        );
+        return {
+          id: credential.id,
+          login: account?.login ?? credential.login,
+          fromEnv: credential.fromEnv,
+          invalid,
+          balance: account?.balance ?? null,
+          total: account?.total ?? null,
+          daySpend: account?.daySpend ?? null,
+          minuteSpend: account?.minuteSpend ?? null,
+        };
+      }),
+    );
+
     const { getAppSettingsQueryCount } =
       await import("@/server/features/settings/SettingsRepository");
     return {
-      login: account.login ?? "",
-      balance: money?.balance ?? 0,
-      total: money?.total ?? 0,
-      daySpend: money?.statistics?.day?.total ?? 0,
-      minuteSpend: money?.statistics?.minute?.total ?? 0,
+      credentials: rows,
       queriesUsed: await getAppSettingsQueryCount(),
     };
   });

@@ -8,6 +8,19 @@ import {
   parseAiTestResponse,
   parseDataforseoTestResponse,
 } from "@/serverFunctions/settings";
+import { appSettingsPayloadSchema } from "@/server/features/settings/appSettingsSchema";
+
+const baseSections = {
+  ai: {
+    openrouterApiKey: "",
+    openaiApiKey: "",
+    anthropicApiKey: "",
+    defaultModel: "",
+    temperature: 1,
+    maxTokens: 128_000,
+  },
+  branding: { appTitle: "AbbaSeo", defaultRegion: "US", currency: "USD" },
+};
 
 describe("settings provider test response parsing", () => {
   it("accepts a successful DataForSEO account envelope", () => {
@@ -42,5 +55,27 @@ describe("settings provider test response parsing", () => {
     ).toBe("ok");
     expect(parseAiTestResponse({ choices: [{}] })).toBeNull();
     expect(parseAiTestResponse({})).toBeNull();
+  });
+});
+
+describe("save input normalization (legacy + multi-credential)", () => {
+  it("parses the new credentials shape into the payload schema", () => {
+    const payload = appSettingsPayloadSchema.parse({
+      dataforseo: {
+        credentials: [{ id: "cred-1", login: "a@b.com", password: "pw" }],
+      },
+      ...baseSections,
+    });
+    expect(payload.dataforseo.credentials).toHaveLength(1);
+  });
+
+  it("parses a legacy save input into the credentials shape", () => {
+    const payload = appSettingsPayloadSchema.parse({
+      dataforseo: { login: "old", password: "secret" },
+      ...baseSections,
+    });
+    expect(payload.dataforseo.credentials).toEqual([
+      { id: "legacy-1", login: "old", password: "secret" },
+    ]);
   });
 });
