@@ -7,6 +7,10 @@ import {
 } from "@/serverFunctions/middleware";
 import { fetchUserData } from "@/server/lib/dataforseo/appendix";
 import {
+  DATAFORSEO_USER_DATA_URL,
+  parseUserDataAccountPayload,
+} from "@/server/lib/dataforseo/user-data";
+import {
   appSettingsPayloadSchema,
   publicAppSettingsSchema,
   type PublicAppSettings,
@@ -26,38 +30,14 @@ import {
 // endpoints validate form values WITHOUT persisting them.
 // ---------------------------------------------------------------------------
 
-const DATAFORSEO_USER_DATA_URL =
-  "https://api.dataforseo.com/v3/appendix/user_data";
 const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
 const AI_TEST_PROMPT = "Reply with exactly: ok";
-
-const dataforseoTestResponseSchema = z.object({
-  status_code: z.number(),
-  tasks: z
-    .array(
-      z.object({
-        status_code: z.number(),
-        result: z
-          .array(
-            z.object({
-              money: z.object({ balance: z.number().optional() }).optional(),
-            }),
-          )
-          .optional(),
-      }),
-    )
-    .optional(),
-});
 
 export function parseDataforseoTestResponse(
   value: unknown,
 ): { balance: number | null } | null {
-  const parsed = dataforseoTestResponseSchema.safeParse(value);
-  const task = parsed.success ? parsed.data.tasks?.[0] : undefined;
-  if (!parsed.success || parsed.data.status_code !== 20000) return null;
-  if (!task || task.status_code !== 20000) return null;
-  const balance = task.result?.[0]?.money?.balance;
-  return { balance: typeof balance === "number" ? balance : null };
+  const account = parseUserDataAccountPayload(value);
+  return account ? { balance: account.balance } : null;
 }
 
 const aiTestResponseSchema = z.object({
