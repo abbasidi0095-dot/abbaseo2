@@ -1,0 +1,174 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AbbaSeo AWS EC2 + Docker + Caddy Deployment"
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t3.medium
+    AllowedValues:
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3a.medium
+      - t3a.large
+      - c6i.large
+    Description: EC2 Instance Type (t3.medium with 4GB RAM is recommended for Vite builds)
+
+  AmiId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id"
+    Description: Ubuntu 24.04 LTS AMI ID
+
+  DataForSeoApiKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: DataForSEO API Key (login:password or base64)
+
+  OpenRouterApiKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Optional OpenRouter API Key for AI features
+
+  AllowedHost:
+    Type: String
+    Default: ""
+    Description: Optional domain name or IP for reverse proxy ALLOWED_HOST header
+
+  KeyName:
+    Type: String
+    Default: ""
+    Description: Optional EC2 KeyPair Name for SSH access
+
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, ""]]
+
+Resources:
+  AbbaSeoSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for AbbaSeo SEO Workspace
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP web traffic
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS web traffic
+        - IpProtocol: tcp
+          FromPort: 3001
+          ToPort: 3001
+          CidrIp: 0.0.0.0/0
+          Description: Direct app port
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH access
+
+  AbbaSeoInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref AmiId
+      SecurityGroupIds:
+        - !Ref AbbaSeoSecurityGroup
+      KeyName: !If [HasKeyName, !Ref KeyName, !Ref "AWS::NoValue"]
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp3
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+
+          # Log setup output
+          exec > >(tee /var/log/abbaseo-setup.log) 2>&1
+          echo "=== AbbaSeo AWS Provisioning Start ==="
+
+          # Install Docker and dependencies
+          apt-get update
+          apt-get install -y ca-certificates curl gnupg lsb-release caddy git
+
+          # Docker official GPG key & repo
+          mkdir -p /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+          apt-get update
+          apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+          # Enable and start Docker
+          systemctl enable docker
+          systemctl start docker
+
+          # Create app directory
+          mkdir -p /opt/abbaseo
+          cd /opt/abbaseo
+
+          # Clone repository
+          git clone https://github.com/abbasidi0095-dot/abbaseo2.git .
+
+          # Create .env configuration
+          cat << 'EOF' > .env
+          CLOUDFLARE_INCLUDE_PROCESS_ENV=true
+          PORT=3001
+          AUTH_MODE=local_noauth
+          ALLOWED_HOST=${AllowedHost}
+          DATAFORSEO_API_KEY=${DataForSeoApiKey}
+          OPENROUTER_API_KEY=${OpenRouterApiKey}
+          VITE_SHOW_DEVTOOLS=false
+          EOF
+
+          # Configure Caddy reverse proxy
+          cat << 'EOF' > /etc/caddy/Caddyfile
+          {
+            admin off
+          }
+
+          :80 {
+            reverse_proxy 127.0.0.1:3001
+            encode gzip zstd
+            header {
+              X-Content-Type-Options "nosniff"
+              X-Frame-Options "SAMEORIGIN"
+            }
+          }
+          EOF
+
+          systemctl restart caddy
+
+          # Build and start AbbaSeo container
+          docker compose -f compose.yaml build --no-cache open-seo || docker compose build
+          docker compose -f compose.yaml up -d
+
+          echo "=== AbbaSeo AWS Provisioning Complete ==="
+
+  AbbaSeoEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref AbbaSeoInstance
+
+Outputs:
+  InstanceId:
+    Description: EC2 Instance ID
+    Value: !Ref AbbaSeoInstance
+
+  PublicIP:
+    Description: Elastic Public IP
+    Value: !Ref AbbaSeoEIP
+
+  WebURL:
+    Description: AbbaSeo Web URL (via Caddy HTTP proxy)
+    Value: !Sub "http://${AbbaSeoEIP}"
+
+  DirectAppURL:
+    Description: Direct App URL
+    Value: !Sub "http://${AbbaSeoEIP}:3001"

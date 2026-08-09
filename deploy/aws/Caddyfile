@@ -1,0 +1,16 @@
+{
+	admin off
+}
+
+:80 {
+	# Reverse proxy to the local AbbaSeo Docker container
+	reverse_proxy 127.0.0.1:3001
+
+	# Compression and security headers
+	encode gzip zstd
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		X-XSS-Protection "1; mode=block"
+	}
+}
