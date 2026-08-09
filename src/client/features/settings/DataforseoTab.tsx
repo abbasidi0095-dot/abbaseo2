@@ -1,45 +1,118 @@
-import { Check, CircleAlert, Loader2, RefreshCw } from "lucide-react";
+/* eslint-disable max-lines -- settings tab keeps the credential list builder colocated to avoid fake indirection. */
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  CircleAlert,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {
   SectionCard,
   SecretField,
 } from "@/client/features/settings/SettingsUi";
-import type { FormSettingsState } from "@/client/features/settings/settingsTypes";
+import type { FormDataforseoSettings } from "@/client/features/settings/settingsTypes";
 import {
   getDataforseoUsage,
   testDataforseoConnection,
 } from "@/serverFunctions/settings";
 import { toast } from "sonner";
 
+const MAX_CREDENTIALS = 10;
+
 type TestResult = { ok: boolean; message: string } | undefined;
+
+function createCredentialId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `cred-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 export function DataforseoTab(props: {
   configured: boolean;
-  form: FormSettingsState["dataforseo"];
-  setDataforseo: (patch: Partial<FormSettingsState["dataforseo"]>) => void;
+  envConfigured: boolean;
+  form: FormDataforseoSettings;
+  setDataforseo: (patch: Partial<FormDataforseoSettings>) => void;
   isSaving: boolean;
   refreshToken: number;
   onSave: () => void;
 }) {
-  const { configured, form, setDataforseo, isSaving, refreshToken, onSave } =
-    props;
-  const [revealPassword, setRevealPassword] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<TestResult>(undefined);
+  const {
+    configured,
+    envConfigured,
+    form,
+    setDataforseo,
+    isSaving,
+    refreshToken,
+    onSave,
+  } = props;
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, TestResult>>(
+    {},
+  );
 
-  async function handleTest() {
-    if (!form.login || !form.password) {
+  function addCredential() {
+    if (form.credentials.length >= MAX_CREDENTIALS) {
+      toast.error(
+        `You can save up to ${MAX_CREDENTIALS} DataForSEO credentials.`,
+      );
+      return;
+    }
+    const id = createCredentialId();
+    setDataforseo({
+      credentials: [...form.credentials, { id, login: "", password: "" }],
+    });
+  }
+
+  function updateCredential(
+    id: string,
+    patch: Partial<{ login: string; password: string }>,
+  ) {
+    setDataforseo({
+      credentials: form.credentials.map((credential) =>
+        credential.id === id ? { ...credential, ...patch } : credential,
+      ),
+    });
+  }
+
+  function removeCredential(id: string) {
+    setDataforseo({
+      credentials: form.credentials.filter(
+        (credential) => credential.id !== id,
+      ),
+    });
+  }
+
+  function moveCredential(id: string, direction: -1 | 1) {
+    const index = form.credentials.findIndex(
+      (credential) => credential.id === id,
+    );
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= form.credentials.length) return;
+    const next = [...form.credentials];
+    [next[index], next[target]] = [next[target], next[index]];
+    setDataforseo({ credentials: next });
+  }
+
+  async function handleTest(id: string) {
+    const credential = form.credentials.find((entry) => entry.id === id);
+    if (!credential || !credential.login || !credential.password) {
       toast.error("Enter both a login and password to test.");
       return;
     }
-    setIsTesting(true);
-    setTestResult(undefined);
+    setTestingId(id);
+    setTestResults((results) => ({ ...results, [id]: undefined }));
     try {
       const result = await testDataforseoConnection({
-        data: { login: form.login, password: form.password },
+        data: { login: credential.login, password: credential.password },
       });
-      setTestResult(
-        result.ok
+      setTestResults((results) => ({
+        ...results,
+        [id]: result.ok
           ? {
               ok: true,
               message:
@@ -48,14 +121,14 @@ export function DataforseoTab(props: {
                   : "Connection successful.",
             }
           : { ok: false, message: result.message },
-      );
+      }));
     } catch {
-      setTestResult({
-        ok: false,
-        message: "Could not run the connection test.",
-      });
+      setTestResults((results) => ({
+        ...results,
+        [id]: { ok: false, message: "Could not run the connection test." },
+      }));
     } finally {
-      setIsTesting(false);
+      setTestingId(null);
     }
   }
 
@@ -63,62 +136,142 @@ export function DataforseoTab(props: {
     <div className="space-y-6">
       <SectionCard
         title="DataForSEO API Credentials"
-        description="The app runs keyword, SERP, backlink, and audit queries through your DataForSEO account."
+        description="The app runs keyword, SERP, backlink, and audit queries through your DataForSEO accounts. Each request uses the account with the most remaining topup; when an account hits zero the next is used automatically."
       >
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium">
-            DataForSEO Login / Username
-          </span>
-          <input
-            type="text"
-            className="input input-bordered w-full"
-            value={form.login}
-            onChange={(event) =>
-              setDataforseo({ login: event.currentTarget.value })
-            }
-            placeholder={
-              configured ? "Saved - edit to change" : "DataForSEO login"
-            }
-            autoComplete="username"
-            spellCheck={false}
-          />
-        </label>
-        <SecretField
-          label="DataForSEO Password / API Key"
-          value={form.password}
-          onChange={(value) => setDataforseo({ password: value })}
-          placeholder={
-            configured ? "Saved - enter to change" : "DataForSEO password"
-          }
-          revealed={revealPassword}
-          onToggleReveal={() => setRevealPassword((v) => !v)}
-        />
+        <div className="space-y-3">
+          {form.credentials.map((credential, index) => (
+            <div
+              key={credential.id}
+              className="space-y-2 rounded-box border border-base-300 bg-base-100 p-3"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono uppercase tracking-wider text-base-content/50">
+                  {index === 0 ? "Primary account" : `Fallback ${index + 1}`}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-square btn-xs"
+                    disabled={index === 0}
+                    onClick={() => moveCredential(credential.id, -1)}
+                    aria-label="Move up"
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-square btn-xs"
+                    disabled={index === form.credentials.length - 1}
+                    onClick={() => moveCredential(credential.id, 1)}
+                    aria-label="Move down"
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-square btn-xs text-error"
+                    onClick={() => removeCredential(credential.id)}
+                    aria-label="Remove credential"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium">
+                  DataForSEO Login / Username
+                </span>
+                <input
+                  type="text"
+                  className="input input-bordered w-full"
+                  value={credential.login}
+                  onChange={(event) =>
+                    updateCredential(credential.id, {
+                      login: event.currentTarget.value,
+                    })
+                  }
+                  placeholder={
+                    credential.login || credential.password
+                      ? "Saved - edit to change"
+                      : "DataForSEO login"
+                  }
+                  autoComplete="username"
+                  spellCheck={false}
+                />
+              </label>
+              <SecretField
+                label="DataForSEO Password / API Key"
+                value={credential.password}
+                onChange={(value) =>
+                  updateCredential(credential.id, { password: value })
+                }
+                placeholder={
+                  credential.login || credential.password
+                    ? "Saved - enter to change"
+                    : "DataForSEO password"
+                }
+                revealed={revealed[credential.id] ?? false}
+                onToggleReveal={() =>
+                  setRevealed((current) => ({
+                    ...current,
+                    [credential.id]: !(current[credential.id] ?? false),
+                  }))
+                }
+              />
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={testingId !== null}
+                  onClick={() => void handleTest(credential.id)}
+                >
+                  {testingId === credential.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Check className="size-4" />
+                  )}
+                  Test Connection
+                </button>
+              </div>
+
+              {testResults[credential.id] ? (
+                <TestResultBanner result={testResults[credential.id]!} />
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        {envConfigured ? (
+          <div className="flex items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content/60">
+            <span className="size-2 rounded-full bg-base-content/30" />
+            <span>
+              Environment variable key is configured and will be used as the
+              last fallback account.
+            </span>
+          </div>
+        ) : null}
 
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="btn btn-primary btn-sm"
-            disabled={isTesting}
-            onClick={() => void handleTest()}
+            className="btn btn-ghost btn-sm"
+            disabled={form.credentials.length >= MAX_CREDENTIALS}
+            onClick={addCredential}
           >
-            {isTesting ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Check className="size-4" />
-            )}
-            Test Connection
+            <Plus className="size-4" />
+            Add Credential ({form.credentials.length}/{MAX_CREDENTIALS})
           </button>
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-primary btn-sm"
             disabled={isSaving}
             onClick={onSave}
           >
             Save Credentials
           </button>
         </div>
-
-        {testResult ? <TestResultBanner result={testResult} /> : null}
       </SectionCard>
 
       <UsageCard configured={configured} refreshToken={refreshToken} />
@@ -150,12 +303,19 @@ export function TestResultBanner({
   );
 }
 
-type Usage = {
+type UsageRow = {
+  id: string;
   login: string;
-  balance: number;
-  total: number;
-  daySpend: number;
-  minuteSpend: number;
+  fromEnv: boolean;
+  invalid: boolean;
+  balance: number | null;
+  total: number | null;
+  daySpend: number | null;
+  minuteSpend: number | null;
+};
+
+type Usage = {
+  credentials: UsageRow[];
   queriesUsed: number;
 };
 
@@ -192,7 +352,7 @@ function UsageCard({
   return (
     <SectionCard
       title="API Usage & Balance"
-      description="Live account numbers from DataForSEO's free usage endpoint."
+      description="Live account numbers from DataForSEO's free usage endpoint, one row per credential."
     >
       {status === "loading" ? (
         <div className="flex items-center gap-2 py-4 text-sm text-base-content/50">
@@ -215,23 +375,66 @@ function UsageCard({
       ) : null}
 
       {status === "loaded" && usage ? (
-        <dl className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          <Stat label="Account" value={usage.login} />
-          <Stat
-            label="Balance"
-            value={`$${usage.balance.toFixed(2)}`}
-            emphasis
-          />
-          <Stat
-            label="Deposited (lifetime)"
-            value={`$${usage.total.toFixed(2)}`}
-          />
-          <Stat label="Spend (24h)" value={`$${usage.daySpend.toFixed(2)}`} />
-          <Stat
-            label="Queries used"
-            value={usage.queriesUsed.toLocaleString()}
-          />
-        </dl>
+        <div className="space-y-3">
+          <div className="overflow-x-auto">
+            <table className="table table-sm">
+              <thead>
+                <tr className="text-xs text-base-content/50">
+                  <th>Account</th>
+                  <th>Source</th>
+                  <th>Balance</th>
+                  <th>Deposited (lifetime)</th>
+                  <th>Spend (24h)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usage.credentials.map((credential) => (
+                  <tr key={credential.id}>
+                    <td className="font-medium">{credential.login || "—"}</td>
+                    <td className="text-xs text-base-content/50">
+                      {credential.invalid ? (
+                        <span className="text-error">invalid key</span>
+                      ) : credential.fromEnv ? (
+                        "environment"
+                      ) : (
+                        "settings"
+                      )}
+                    </td>
+                    <td
+                      className={`font-semibold tabular-nums ${
+                        !credential.invalid &&
+                        credential.balance !== null &&
+                        credential.balance <= 0
+                          ? "text-error"
+                          : "text-primary"
+                      }`}
+                    >
+                      {credential.invalid || credential.balance === null
+                        ? "—"
+                        : `$${credential.balance.toFixed(2)}`}
+                    </td>
+                    <td className="tabular-nums">
+                      {credential.total === null
+                        ? "—"
+                        : `$${credential.total.toFixed(2)}`}
+                    </td>
+                    <td className="tabular-nums">
+                      {credential.daySpend === null
+                        ? "—"
+                        : `$${credential.daySpend.toFixed(2)}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-sm text-base-content/60">
+            Queries used:{" "}
+            <span className="font-semibold text-base-content">
+              {usage.queriesUsed.toLocaleString()}
+            </span>
+          </p>
+        </div>
       ) : null}
 
       <div className="flex justify-end">
@@ -248,28 +451,5 @@ function UsageCard({
         </button>
       </div>
     </SectionCard>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  emphasis,
-}: {
-  label: string;
-  value: string;
-  emphasis?: boolean;
-}) {
-  return (
-    <div className="rounded-box border border-base-300 bg-base-100 p-3">
-      <dt className="text-xs text-base-content/50">{label}</dt>
-      <dd
-        className={`mt-1 truncate text-sm font-semibold ${
-          emphasis ? "text-primary" : ""
-        }`}
-      >
-        {value}
-      </dd>
-    </div>
   );
 }
