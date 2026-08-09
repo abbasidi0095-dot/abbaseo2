@@ -84,7 +84,7 @@ export function StatusBar({
             <span
               className={`flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-mono uppercase tracking-wider ${
                 aiOk
-                  ? "border-cyan/25 bg-cyan/10 text-cyan"
+                  ? "border-info/25 bg-info/10 text-info"
                   : "border-base-300 bg-base-200 text-base-content/40"
               }`}
               title={aiOk ? "AI agent ready" : "No AI provider key configured"}

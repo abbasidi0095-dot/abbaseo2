@@ -24,31 +24,32 @@
   exclude: properties;
 }
 
-/* Light theme */
+/* Light theme - "growth" palette: deep emerald (primary), teal (secondary),
+   warm amber (accent), sky (info). */
 @plugin "daisyui/theme" {
   name: "openseo";
   default: true;
   prefersdark: false;
   color-scheme: light;
   --color-base-100: oklch(1 0 0);
-  --color-base-200: oklch(0.985 0 0);
-  --color-base-300: oklch(0.92 0.004 286.32);
-  --color-base-content: oklch(0.141 0.005 285.823);
-  --color-primary: oklch(0.585 0.233 277.117);
+  --color-base-200: oklch(0.982 0.005 165);
+  --color-base-300: oklch(0.92 0.008 165);
+  --color-base-content: oklch(0.19 0.02 165);
+  --color-primary: oklch(0.5 0.14 165);
   --color-primary-content: oklch(1 0 0);
-  --color-secondary: oklch(0.673 0.182 276.935);
+  --color-secondary: oklch(0.63 0.12 190);
   --color-secondary-content: oklch(1 0 0);
-  --color-accent: oklch(0.715 0.143 215.221);
-  --color-accent-content: oklch(1 0 0);
-  --color-neutral: oklch(0.205 0.006 285.823);
-  --color-neutral-content: oklch(1 0 0);
-  --color-info: oklch(0.715 0.143 215.221);
+  --color-accent: oklch(0.74 0.15 75);
+  --color-accent-content: oklch(0.28 0.06 60);
+  --color-neutral: oklch(0.25 0.02 165);
+  --color-neutral-content: oklch(0.98 0.005 165);
+  --color-info: oklch(0.68 0.12 215);
   --color-info-content: oklch(1 0 0);
-  --color-success: oklch(0.696 0.17 162.48);
+  --color-success: oklch(0.66 0.16 160);
   --color-success-content: oklch(1 0 0);
-  --color-warning: oklch(0.769 0.188 70.08);
-  --color-warning-content: oklch(1 0 0);
-  --color-error: oklch(0.645 0.246 16.439);
+  --color-warning: oklch(0.75 0.17 80);
+  --color-warning-content: oklch(0.27 0.06 60);
+  --color-error: oklch(0.6 0.2 25);
   --color-error-content: oklch(1 0 0);
   --radius-selector: 0.5rem;
   --radius-field: 0.5rem;
@@ -65,29 +66,28 @@
   name: "openseo-dark";
   prefersdark: true;
   color-scheme: dark;
-  /* Cyber-dark zinc surfaces: page = zinc-950, panels = zinc-900,
-     borders = zinc-800. Accents map to the design-system palette:
-     indigo (primary), emerald (success), rose (error), amber (warning),
-     cyan (info/accent). */
-  --color-base-100: oklch(0.211 0.006 285.885);
-  --color-base-200: oklch(0.141 0.005 285.823);
-  --color-base-300: oklch(0.274 0.006 286.033);
-  --color-base-content: oklch(0.92 0.004 286.32);
-  --color-primary: oklch(0.585 0.233 277.117);
-  --color-primary-content: oklch(1 0 0);
-  --color-secondary: oklch(0.673 0.182 276.935);
-  --color-secondary-content: oklch(0.141 0.005 285.823);
-  --color-accent: oklch(0.715 0.143 215.221);
-  --color-accent-content: oklch(0.141 0.005 285.823);
-  --color-neutral: oklch(0.274 0.006 286.033);
-  --color-neutral-content: oklch(0.92 0.004 286.32);
-  --color-info: oklch(0.715 0.143 215.221);
-  --color-info-content: oklch(0.141 0.005 285.823);
-  --color-success: oklch(0.696 0.17 162.48);
-  --color-success-content: oklch(0.141 0.005 285.823);
-  --color-warning: oklch(0.769 0.188 70.08);
-  --color-warning-content: oklch(0.141 0.005 285.823);
-  --color-error: oklch(0.645 0.246 16.439);
+  /* Teal-tinted dark surfaces: page = near-black green, panels = deep
+     green-teal, borders = brighter teal. Accents map to the design-system
+     palette: emerald (primary), teal (secondary), amber (accent). */
+  --color-base-100: oklch(0.215 0.018 175);
+  --color-base-200: oklch(0.155 0.015 175);
+  --color-base-300: oklch(0.275 0.02 175);
+  --color-base-content: oklch(0.935 0.008 165);
+  --color-primary: oklch(0.72 0.16 165);
+  --color-primary-content: oklch(0.14 0.04 165);
+  --color-secondary: oklch(0.66 0.12 190);
+  --color-secondary-content: oklch(0.13 0.03 190);
+  --color-accent: oklch(0.8 0.14 85);
+  --color-accent-content: oklch(0.24 0.05 60);
+  --color-neutral: oklch(0.275 0.02 175);
+  --color-neutral-content: oklch(0.935 0.008 165);
+  --color-info: oklch(0.75 0.12 215);
+  --color-info-content: oklch(0.14 0.03 215);
+  --color-success: oklch(0.76 0.16 160);
+  --color-success-content: oklch(0.14 0.05 160);
+  --color-warning: oklch(0.8 0.15 85);
+  --color-warning-content: oklch(0.25 0.05 60);
+  --color-error: oklch(0.68 0.19 25);
   --color-error-content: oklch(1 0 0);
   --radius-selector: 0.5rem;
   --radius-field: 0.5rem;
@@ -403,18 +403,18 @@ html {
   letter-spacing: -0.02em;
 }
 
-/* Ambient dark-mode glow: a faint indigo/cyan wash at the edges of the
-   workspace so the zinc-950 canvas doesn't read as flat black. */
+/* Ambient dark-mode glow: a faint emerald/teal wash at the edges of the
+   workspace so the dark-teal canvas doesn't read as flat black. */
 html[data-theme="openseo-dark"] body {
   background:
     radial-gradient(
       1100px 520px at 85% -12%,
-      color-mix(in oklab, #6366f1 9%, transparent),
+      color-mix(in oklab, #10b981 9%, transparent),
       transparent 70%
     ),
     radial-gradient(
       900px 520px at -10% 110%,
-      color-mix(in oklab, #06b6d4 6%, transparent),
+      color-mix(in oklab, #2dd4bf 6%, transparent),
       transparent 70%
     ),
     var(--color-base-200);
@@ -429,4 +429,19 @@ html[data-theme="openseo-dark"] body {
       transparent
     )
     transparent;
+}
+
+/* Render containment for below-fold cards: browsers skip layout/paint of
+   off-screen .cv-auto elements until they approach the viewport, which
+   keeps first paint cheap on mobile dashboards and settings pages. */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
+}
+
+/* Same treatment applied to every direct child of a .cv-grid container —
+   used for the dashboard card grid so each card is contained. */
+.cv-grid > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
 }

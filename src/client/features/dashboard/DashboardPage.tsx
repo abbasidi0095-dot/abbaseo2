@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,8 +15,15 @@ import {
   GscCard,
 } from "@/client/features/dashboard/DashboardCards";
 import { DashboardHeroGrid } from "@/client/features/dashboard/DashboardHeroGrid";
-import { TrendChart } from "@/client/features/dashboard/TrendChart";
 import { McpConnectCard } from "@/client/features/dashboard/McpConnectCard";
+
+// Recharts is heavy; split it out so the dashboard shell paints fast on
+// mobile and the chart chunk streams in after.
+const TrendChart = lazy(() =>
+  import("@/client/features/dashboard/TrendChart").then((m) => ({
+    default: m.TrendChart,
+  })),
+);
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import type { DashboardActivation } from "@/server/features/dashboard/services/DashboardService";
 import {
@@ -318,15 +325,17 @@ export function DashboardPage({ projectId }: { projectId: string }) {
           backlinks={overview?.backlinks ?? null}
         />
 
-        <TrendChart
-          projectId={projectId}
-          dateRange={trendRange}
-          onChange={setTrendRange}
-        />
+        <Suspense fallback={<div className="skeleton h-44 w-full" />}>
+          <TrendChart
+            projectId={projectId}
+            dateRange={trendRange}
+            onChange={setTrendRange}
+          />
+        </Suspense>
 
         {/* Every card is half width on large screens (only the checklist spans).
           Cards with data render before setup pitches and empty states. */}
-        <div className="grid items-start gap-5 lg:grid-cols-2">
+        <div className="cv-grid grid items-start gap-5 lg:grid-cols-2">
           {[
             // Array order is the within-bucket order after the data-first sort:
             // the MCP pitch leads the setup cards.

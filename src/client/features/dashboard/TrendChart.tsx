@@ -102,7 +102,7 @@ export function TrendChart({
   const trend = trendQuery.data;
   const series = trend?.connected ? trend.series : [];
   const stroke =
-    metric === "position" ? "var(--color-cyan)" : "var(--color-primary)";
+    metric === "position" ? "var(--color-secondary)" : "var(--color-primary)";
 
   return (
     <div className="overflow-hidden rounded-xl border border-base-300 bg-base-100 shadow-sm">
