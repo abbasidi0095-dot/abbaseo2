@@ -3,6 +3,7 @@ import {
   appSettingsPayloadSchema,
   DEFAULT_APP_SETTINGS_PAYLOAD,
   type AppSettingsPayload,
+  type DataForSeoSettings,
 } from "@/server/features/settings/appSettingsSchema";
 import { AppError } from "@/server/lib/errors";
 
@@ -45,8 +46,12 @@ export type SavedAppSettingsPayload = {
 
 let cache: (SettingsSnapshot & { fetchedAt: number }) | null = null;
 
-function emptyPayload(): AppSettingsPayload {
+export function generateDefaultPayload(): AppSettingsPayload {
   return structuredClone(DEFAULT_APP_SETTINGS_PAYLOAD);
+}
+
+function emptyPayload(): AppSettingsPayload {
+  return generateDefaultPayload();
 }
 
 export function mergeAppSettingsSecrets(
@@ -56,9 +61,10 @@ export function mergeAppSettingsSecrets(
   return {
     ...input,
     dataforseo: {
-      ...input.dataforseo,
-      login: input.dataforseo.login || current.dataforseo.login,
-      password: input.dataforseo.password || current.dataforseo.password,
+      credentials: mergeDataforseoCredentials(
+        current.dataforseo.credentials,
+        input.dataforseo.credentials,
+      ),
     },
     ai: {
       ...input.ai,
@@ -68,6 +74,29 @@ export function mergeAppSettingsSecrets(
       anthropicApiKey: input.ai.anthropicApiKey || current.ai.anthropicApiKey,
     },
   };
+}
+
+/**
+ * Merges credential rows by id: a blank incoming login/password keeps the
+ * existing value. Rows where BOTH login and password are empty are dropped.
+ */
+function mergeDataforseoCredentials(
+  current: DataForSeoSettings["credentials"],
+  incoming: DataForSeoSettings["credentials"],
+): DataForSeoSettings["credentials"] {
+  return incoming
+    .map((credential) => {
+      const existing = current.find((entry) => entry.id === credential.id);
+      return {
+        id: credential.id,
+        login: credential.login || existing?.login || "",
+        password: credential.password || existing?.password || "",
+      };
+    })
+    .filter(
+      (credential) =>
+        credential.login !== "" || credential.password !== "",
+    );
 }
 
 async function shouldEncrypt(): Promise<boolean> {
@@ -190,20 +219,13 @@ export async function saveAppSettingsPayload(
 
   const normalized = { ...parsed };
   // Prune unset secrets to empty strings so the UI never round-trips nulls.
-  const dataforseo = { ...parsed.dataforseo };
+  normalized.dataforseo = {
+    credentials: parsed.dataforseo.credentials.filter(
+      (credential) =>
+        credential.login !== "" || credential.password !== "",
+    ),
+  };
   const ai = { ...parsed.ai };
-  for (const key of ["login", "password"] as const) {
-    dataforseo[key] = dataforseo[key] ?? "";
-  }
-  for (const key of [
-    "openrouterApiKey",
-    "openaiApiKey",
-    "anthropicApiKey",
-  ] as const) {
-    ai[key] = ai[key] ?? "";
-  }
-  normalized.dataforseo = dataforseo;
-  normalized.ai = ai;
 
   cache = {
     fetchedAt: Date.now(),
@@ -238,14 +260,15 @@ export async function getDynamicSecretValue(
 ): Promise<string | undefined> {
   const payload = await loadAppSettings();
   switch (name) {
-    case "DATAFORSEO_API_KEY":
-      if (payload.dataforseo?.login && payload.dataforseo?.password) {
-        return encodeDataforseoApiKey(
-          payload.dataforseo.login,
-          payload.dataforseo.password,
-        );
+    case "DATAFORSEO_API_KEY": {
+      const primary = payload.dataforseo.credentials.find(
+        (credential) => credential.login && credential.password,
+      );
+      if (primary) {
+        return encodeDataforseoApiKey(primary.login, primary.password);
       }
       return undefined;
+    }
     case "OPENROUTER_API_KEY":
       return payload.ai?.openrouterApiKey || undefined;
     case "OPENAI_API_KEY":
