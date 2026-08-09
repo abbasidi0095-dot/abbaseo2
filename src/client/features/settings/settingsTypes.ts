@@ -1,7 +1,11 @@
 // Client-side settings form state. Secrets start blank and are only written
 // to the server; the redacted public payload pre-fills the non-secret fields.
+export type FormDataforseoSettings = {
+  credentials: Array<{ id: string; login: string; password: string }>;
+};
+
 export type FormSettingsState = {
-  dataforseo: { login: string; password: string };
+  dataforseo: FormDataforseoSettings;
   ai: {
     openrouterApiKey: string;
     openaiApiKey: string;
@@ -18,7 +22,7 @@ export type FormSettingsState = {
 };
 
 export const DEFAULT_FORM: FormSettingsState = {
-  dataforseo: { login: "", password: "" },
+  dataforseo: { credentials: [] },
   ai: {
     openrouterApiKey: "",
     openaiApiKey: "",

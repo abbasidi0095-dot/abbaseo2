@@ -56,7 +56,15 @@ function SettingsPage() {
         setPublicSettings(settings);
         setForm((f) => ({
           ...f,
-          dataforseo: { ...f.dataforseo, login: settings.dataforseo.login },
+          dataforseo: {
+            credentials: settings.dataforseo.credentials.map(
+              (credential) => ({
+                id: credential.id,
+                login: credential.login,
+                password: "",
+              }),
+            ),
+          },
           ai: {
             ...f.ai,
             defaultModel: settings.ai.defaultModel,
@@ -113,8 +121,11 @@ function SettingsPage() {
       setForm((current) => ({
         ...current,
         dataforseo: {
-          ...current.dataforseo,
-          login: saved.dataforseo.login,
+          credentials: saved.dataforseo.credentials.map((credential) => ({
+            id: credential.id,
+            login: credential.login,
+            password: "",
+          })),
         },
         ai: {
           ...current.ai,
@@ -208,6 +219,7 @@ function SettingsPage() {
             {tab === "dataforseo" ? (
               <DataforseoTab
                 configured={publicSettings?.dataforseo.configured ?? false}
+                envConfigured={publicSettings?.dataforseo.envConfigured ?? false}
                 form={form.dataforseo}
                 setDataforseo={setDataforseo}
                 isSaving={isSaving}
