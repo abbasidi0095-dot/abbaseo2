@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "@/server/lib/errors";
 
-vi.mock("@/server/lib/runtime-env", () => ({
-  getRequiredEnvValue: vi.fn(async () => "test-api-key"),
+vi.mock("@/server/lib/dataforseo/credential-selector", () => ({
+  dataforseoCredentialSelector: {
+    resolve: vi.fn(async () => "test-api-key"),
+  },
 }));
 
 const { classifyBacklinksError } = vi.hoisted(() => ({

@@ -94,8 +94,7 @@ function mergeDataforseoCredentials(
       };
     })
     .filter(
-      (credential) =>
-        credential.login !== "" || credential.password !== "",
+      (credential) => credential.login !== "" || credential.password !== "",
     );
 }
 
@@ -221,11 +220,9 @@ export async function saveAppSettingsPayload(
   // Prune unset secrets to empty strings so the UI never round-trips nulls.
   normalized.dataforseo = {
     credentials: parsed.dataforseo.credentials.filter(
-      (credential) =>
-        credential.login !== "" || credential.password !== "",
+      (credential) => credential.login !== "" || credential.password !== "",
     ),
   };
-  const ai = { ...parsed.ai };
 
   cache = {
     fetchedAt: Date.now(),

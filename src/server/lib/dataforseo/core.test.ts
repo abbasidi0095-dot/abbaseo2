@@ -117,18 +117,16 @@ describe("DataForSEO response metering", () => {
 
   it("routes every billable call through the credential selector", async () => {
     resolveMock.mockResolvedValue("selected-key");
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn<typeof fetch>()
-        .mockResolvedValue(Response.json({ tasks_count: 1 })),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ tasks_count: 1 }));
+    vi.stubGlobal("fetch", fetchMock);
 
     await labsApi().googleKeywordsForSiteLive([]);
 
     expect(resolveMock).toHaveBeenCalled();
-    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect((init.headers as Headers).get("Authorization")).toBe(
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    expect(new Headers(init?.headers ?? []).get("Authorization")).toBe(
       "Basic selected-key",
     );
   });

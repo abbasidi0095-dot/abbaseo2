@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/server/lib/runtime-env", () => ({
-  getRequiredEnvValue: vi.fn(async () => "test-api-key"),
+vi.mock("@/server/lib/dataforseo/credential-selector", () => ({
+  dataforseoCredentialSelector: {
+    resolve: vi.fn(async () => "test-api-key"),
+  },
 }));
 
 import {

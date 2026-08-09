@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  type Mock,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 const { loadAppSettingsMock, getOptionalEnvValueMock } = vi.hoisted(() => ({
   loadAppSettingsMock: vi.fn(),
@@ -26,7 +34,7 @@ function cred(id: string): ResolvedDataforseoCredential {
 
 function makeProbe(
   balances: Record<string, number | null | "invalid">,
-): vi.Mock<() => Promise<ProbeResult>> {
+): Mock<() => Promise<ProbeResult>> {
   return vi.fn(async (encoded: string) => {
     const value = balances[encoded];
     if (value === "invalid") return { balance: null, invalid: true };
@@ -36,7 +44,7 @@ function makeProbe(
 
 function makeSelector(
   credentials: ResolvedDataforseoCredential[],
-  probe: vi.Mock<() => Promise<ProbeResult>>,
+  probe: Mock<() => Promise<ProbeResult>>,
   ttlMs = 60_000,
 ) {
   return new DataforseoCredentialSelector({
@@ -88,15 +96,20 @@ describe("DataforseoCredentialSelector.resolve", () => {
   });
 
   it("skips invalid (401) credentials even when they have the highest balance", async () => {
-    const balances = { "enc-a": "invalid", "enc-b": 3 };
+    const balances: Record<string, number | "invalid" | null> = {
+      "enc-a": "invalid",
+      "enc-b": 3,
+    };
     const selector = makeSelector([cred("a"), cred("b")], makeProbe(balances));
 
     expect(await selector.resolve()).toBe("enc-b");
   });
 
   it("uses the primary even when every credential is invalid (attempt-anyway)", async () => {
-    const balances = { "enc-a": "invalid", "enc-b": "invalid" };
-    const selector = makeSelector([cred("a"), cred("b")], makeProbe(balances));
+    const selector = makeSelector(
+      [cred("a"), cred("b")],
+      makeProbe({ "enc-a": "invalid", "enc-b": "invalid" }),
+    );
 
     expect(await selector.resolve()).toBe("enc-a");
   });
