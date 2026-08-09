@@ -71,9 +71,7 @@ describe("appSettingsPayloadSchema", () => {
   });
 
   it("keeps the default payload empty yet parseable", () => {
-    const parsed = appSettingsPayloadSchema.parse(
-      DEFAULT_APP_SETTINGS_PAYLOAD,
-    );
+    const parsed = appSettingsPayloadSchema.parse(DEFAULT_APP_SETTINGS_PAYLOAD);
     expect(parsed.dataforseo.credentials).toEqual([]);
   });
 });

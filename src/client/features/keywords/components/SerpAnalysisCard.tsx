@@ -92,10 +92,8 @@ function SerpAnalysisTable({ items }: { items: SerpResultItem[] }) {
       aria-label="Search results preview"
     >
       {items.map((item) => {
-        const movedUp =
-          item.rankChange != null && item.rankChange > 0;
-        const movedDown =
-          item.rankChange != null && item.rankChange < 0;
+        const movedUp = item.rankChange != null && item.rankChange > 0;
+        const movedDown = item.rankChange != null && item.rankChange < 0;
         return (
           <li key={`${item.rank}-${item.url}`} className="flex gap-3 px-4 py-3">
             <span className="w-5 shrink-0 pt-0.5 text-right font-mono text-[13px] font-medium tabular-nums text-[#70757a]">
@@ -148,7 +146,10 @@ function SerpAnalysisTable({ items }: { items: SerpResultItem[] }) {
               item.referringDomains != null ? (
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                   {item.etv != null ? (
-                    <SerpChip label="ETV" value={formatCompactNumber(item.etv)} />
+                    <SerpChip
+                      label="ETV"
+                      value={formatCompactNumber(item.etv)}
+                    />
                   ) : null}
                   {item.estimatedPaidTrafficCost != null ? (
                     <SerpChip

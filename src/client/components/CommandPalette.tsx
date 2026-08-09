@@ -10,7 +10,10 @@ import {
   Settings,
   Sun,
 } from "lucide-react";
-import { connectNavGroup, getProjectNavGroups } from "@/client/navigation/items";
+import {
+  connectNavGroup,
+  getProjectNavGroups,
+} from "@/client/navigation/items";
 import { getProjects } from "@/serverFunctions/projects";
 import { useThemePreference } from "@/client/lib/theme";
 import { signOutAndRedirect } from "@/lib/auth-client";
@@ -147,7 +150,8 @@ export function CommandPalette({
     if (!normalized) return entries;
     const scored = entries
       .map((entry) => {
-        const haystack = `${entry.group} ${entry.label} ${entry.hint}`.toLowerCase();
+        const haystack =
+          `${entry.group} ${entry.label} ${entry.hint}`.toLowerCase();
         let score = -1;
         if (haystack.startsWith(normalized)) score = 100;
         else if (haystack.includes(normalized)) score = 50;
@@ -193,7 +197,8 @@ export function CommandPalette({
   };
 
   React.useEffect(() => {
-    const el = listRef.current?.querySelector<HTMLElement>("[data-highlighted]");
+    const el =
+      listRef.current?.querySelector<HTMLElement>("[data-highlighted]");
     el?.scrollIntoView({ block: "nearest" });
   }, [highlight]);
 

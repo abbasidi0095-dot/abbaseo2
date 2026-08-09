@@ -69,9 +69,7 @@ export class DataforseoCredentialSelector {
 
     const withFunds = evaluated.filter(
       ({ snapshot }) =>
-        !snapshot.invalid &&
-        snapshot.balance !== null &&
-        snapshot.balance > 0,
+        !snapshot.invalid && snapshot.balance !== null && snapshot.balance > 0,
     );
 
     if (withFunds.length > 0) {
@@ -125,15 +123,16 @@ export async function loadConfiguredDataforseoCredentials(): Promise<
     getOptionalEnvValue("DATAFORSEO_API_KEY"),
   ]);
 
-  const credentials: ResolvedDataforseoCredential[] =
-    (payload?.dataforseo?.credentials ?? [])
-      .filter((credential) => credential.login && credential.password)
-      .map((credential) => ({
-        id: credential.id,
-        login: credential.login,
-        encoded: btoa(`${credential.login}:${credential.password}`),
-        fromEnv: false,
-      }));
+  const credentials: ResolvedDataforseoCredential[] = (
+    payload?.dataforseo?.credentials ?? []
+  )
+    .filter((credential) => credential.login && credential.password)
+    .map((credential) => ({
+      id: credential.id,
+      login: credential.login,
+      encoded: btoa(`${credential.login}:${credential.password}`),
+      fromEnv: false,
+    }));
 
   if (envKey) {
     credentials.push({

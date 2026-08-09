@@ -90,9 +90,7 @@ export const publicAppSettingsSchema = z.object({
   updatedAt: z.string().nullable(),
   dataforseo: z.object({
     configured: z.boolean(),
-    credentials: z.array(
-      z.object({ id: z.string(), login: z.string() }),
-    ),
+    credentials: z.array(z.object({ id: z.string(), login: z.string() })),
     envConfigured: z.boolean(),
   }),
   ai: z.object({

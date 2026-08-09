@@ -74,9 +74,7 @@ describe("mergeAppSettingsSecrets", () => {
     const input = {
       ...current,
       dataforseo: {
-        credentials: [
-          { id: "cred-1", login: "", password: "" },
-        ],
+        credentials: [{ id: "cred-1", login: "", password: "" }],
       },
       ai: {
         ...current.ai,

@@ -1,20 +1,17 @@
 import * as React from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowUpRight,
-  Bot,
-  Search,
-  Wallet,
-  WifiOff,
-} from "lucide-react";
+import { ArrowUpRight, Bot, Search, Wallet, WifiOff } from "lucide-react";
 import {
   getAgentConnectivity,
   getDataforseoBalance,
 } from "@/serverFunctions/observability";
 
 function isMac() {
-  return typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform ?? "");
+  return (
+    typeof navigator !== "undefined" &&
+    /Mac|iPhone|iPad/.test(navigator.platform ?? "")
+  );
 }
 
 function formatMoney(value: number | null | undefined): string {

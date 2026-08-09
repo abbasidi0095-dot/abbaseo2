@@ -40,7 +40,10 @@ function compactNumber(value: number): string {
   return String(value);
 }
 
-function metricLabel(metric: TrendMetric, value: number | null | undefined): string {
+function metricLabel(
+  metric: TrendMetric,
+  value: number | null | undefined,
+): string {
   if (value == null) return "—";
   return metric === "position" ? value.toFixed(1) : compactNumber(value);
 }
@@ -98,13 +101,16 @@ export function TrendChart({
     RANGES.find((range) => range.key === dateRange)?.label ?? "28d";
   const trend = trendQuery.data;
   const series = trend?.connected ? trend.series : [];
-  const stroke = metric === "position" ? "var(--color-cyan)" : "var(--color-primary)";
+  const stroke =
+    metric === "position" ? "var(--color-cyan)" : "var(--color-primary)";
 
   return (
     <div className="overflow-hidden rounded-xl border border-base-300 bg-base-100 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 px-4 py-3">
         <div>
-          <h2 className="text-sm font-semibold tracking-tight">Organic traffic</h2>
+          <h2 className="text-sm font-semibold tracking-tight">
+            Organic traffic
+          </h2>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-base-content/45">
             Google Search Console · last {rangeLabel}
           </p>
@@ -149,12 +155,16 @@ export function TrendChart({
 
       <div className="p-4">
         {trendQuery.isPending ? (
-          <div className="h-56 animate-pulse rounded-lg bg-base-200/60" aria-busy />
+          <div
+            className="h-56 animate-pulse rounded-lg bg-base-200/60"
+            aria-busy
+          />
         ) : trend?.connected === false ? (
           <div className="flex h-56 flex-col items-start justify-center gap-2 px-2">
             <p className="text-sm font-medium">No Search Console data yet</p>
             <p className="text-sm text-base-content/60">
-              Link your property once and AbbaSeo charts your real organic traffic.
+              Link your property once and AbbaSeo charts your real organic
+              traffic.
             </p>
             <Link
               to="/p/$projectId/search-performance"
@@ -166,14 +176,13 @@ export function TrendChart({
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={224}>
-            <AreaChart data={series} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+            <AreaChart
+              data={series}
+              margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
+            >
               <defs>
                 <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="0%"
-                    stopColor={stroke}
-                    stopOpacity={0.28}
-                  />
+                  <stop offset="0%" stopColor={stroke} stopOpacity={0.28} />
                   <stop offset="100%" stopColor={stroke} stopOpacity={0} />
                 </linearGradient>
               </defs>
@@ -196,13 +205,18 @@ export function TrendChart({
                 width={0}
                 tickLine={false}
                 axisLine={false}
-                domain={metric === "position" ? ["dataMin - 1", "dataMax + 1"] : [0, "auto"]}
+                domain={
+                  metric === "position"
+                    ? ["dataMin - 1", "dataMax + 1"]
+                    : [0, "auto"]
+                }
                 reversed={metric === "position"}
               />
               <Tooltip
                 content={<TrendTooltip metric={metric} />}
                 cursor={{
-                  stroke: "color-mix(in oklab, var(--color-base-content) 18%, transparent)",
+                  stroke:
+                    "color-mix(in oklab, var(--color-base-content) 18%, transparent)",
                   strokeWidth: 1,
                 }}
               />

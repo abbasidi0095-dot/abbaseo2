@@ -141,7 +141,9 @@ function HealthGauge({ score }: { score: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className={`metric-value text-3xl font-semibold ${scoreTone(score)}`}>
+        <span
+          className={`metric-value text-3xl font-semibold ${scoreTone(score)}`}
+        >
           {score}
         </span>
         <span className="font-mono text-[10px] uppercase tracking-wider text-base-content/45">
@@ -218,8 +220,8 @@ export function AuditHealthPanel({
 
         {activeGroups.length === 0 ? (
           <div className="mt-4 flex items-center gap-2 rounded-lg border border-success/25 bg-success/5 px-3 py-2.5 text-sm text-success">
-            No {SEVERITY_LABEL[activeSeverity].toLowerCase()} — this category
-            is clean.
+            No {SEVERITY_LABEL[activeSeverity].toLowerCase()} — this category is
+            clean.
           </div>
         ) : (
           <ul className="mt-4 flex flex-col gap-3">

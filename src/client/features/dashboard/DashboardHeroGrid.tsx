@@ -96,7 +96,8 @@ export function RankBucketsBar({
 }: {
   buckets: { top3: number; p4to10: number; p11to50: number; p51plus: number };
 }) {
-  const total = buckets.top3 + buckets.p4to10 + buckets.p11to50 + buckets.p51plus;
+  const total =
+    buckets.top3 + buckets.p4to10 + buckets.p11to50 + buckets.p51plus;
   if (total === 0) return null;
   const segments = [
     { count: buckets.top3, tone: "bg-success" },
@@ -172,7 +173,10 @@ export function DashboardHeroGrid({
         value={totals ? formatCount(totals.clicks) : null}
         delta={
           totals && prevTotals ? (
-            <PercentDelta current={totals.clicks} previous={prevTotals.clicks} />
+            <PercentDelta
+              current={totals.clicks}
+              previous={prevTotals.clicks}
+            />
           ) : null
         }
         empty="Connect Search Console to see organic clicks."
@@ -197,7 +201,10 @@ export function DashboardHeroGrid({
         value={totals ? formatPosition(totals.position) : null}
         delta={
           totals && prevTotals ? (
-            <PositionDelta current={totals.position} previous={prevTotals.position} />
+            <PositionDelta
+              current={totals.position}
+              previous={prevTotals.position}
+            />
           ) : null
         }
         empty="Connect Search Console to see positions."
@@ -227,7 +234,11 @@ export function DashboardHeroGrid({
             ? `${distribution.positioned}/${distribution.tracked}`
             : null
         }
-        sub={distribution?.buckets ? <RankBucketsBar buckets={distribution.buckets} /> : null}
+        sub={
+          distribution?.buckets ? (
+            <RankBucketsBar buckets={distribution.buckets} />
+          ) : null
+        }
         empty={
           distribution && distribution.tracked === 0 ? (
             <Link

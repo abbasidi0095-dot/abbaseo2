@@ -237,9 +237,8 @@ export function DashboardPage({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   // Shared by the hero stat row and the trend chart (they dedupe on the same
   // query key); the chart's range tabs write this.
-  const [trendRange, setTrendRange] = useState<SearchPerformanceDateRange>(
-    "last_28_days",
-  );
+  const [trendRange, setTrendRange] =
+    useState<SearchPerformanceDateRange>("last_28_days");
 
   const activationQuery = useQuery({
     queryKey: ["dashboardActivation", projectId],
