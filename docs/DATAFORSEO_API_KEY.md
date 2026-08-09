@@ -17,3 +17,13 @@ Set the value as `DATAFORSEO_API_KEY`:
 - **Docker self-hosting:** in `.env` (see [`SELF_HOSTING_DOCKER.md`](./SELF_HOSTING_DOCKER.md)).
 - **Cloudflare self-hosting:** in `.env.selfhost` (see [`SELF_HOSTING_CLOUDFLARE.md`](./SELF_HOSTING_CLOUDFLARE.md)). Legacy button/Wrangler deployments: as a Worker secret in the dashboard under `Settings` -> `Variables & Secrets`.
 - **Local development:** in `.env.local` (see [`LOCAL_DEVELOPMENT.md`](./LOCAL_DEVELOPMENT.md)).
+
+## Multiple credentials & automatic fallback
+
+The Settings screen accepts up to 10 DataForSEO credentials. The app probes
+each account's balance (free `user_data` endpoint, 60-second cache) and routes
+billable requests to the account with the most remaining topup, switching to
+the next account as each one hits zero. The `DATAFORSEO_API_KEY` environment
+variable, when set, acts as an additional final fallback account. When every
+account is exhausted the request still goes out with the primary key so
+DataForSEO's own error surfaces to the user.
